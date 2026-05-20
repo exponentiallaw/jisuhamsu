@@ -72,15 +72,31 @@
             padding: 20px;
         }
         
-        /* 디자인 업그레이드: 필기체 타이포그래피 */
         #overlay h1 {
             font-family: 'Dancing Script', cursive;
-            font-size: 48px;
-            background: linear-gradient(to bottom, #ffb6c1, #ff4757); /* 그라데이션 추가 */
+            font-size: 44px;
+            background: linear-gradient(to bottom, #ffb6c1, #ff4757);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        /* 클리어 메시지 스타일 */
+        #clear-message {
+            display: none;
+            color: #fff;
+            background: rgba(255, 71, 87, 0.3);
+            border: 1px solid #ff4757;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+            width: 280px;
         }
         
         #nickname-input {
@@ -148,7 +164,10 @@
         </div>
 
         <div id="overlay">
-            <h1>EONG DEONGI killer</h1>
+            <h1 id="overlay-title">EONG DEONGI killer</h1>
+            
+            <div id="clear-message"></div>
+            
             <input type="text" id="nickname-input" placeholder="닉네임 입력 (최대5자)" maxlength="5" value="플레이어">
             
             <div class="btn-group">
@@ -158,9 +177,9 @@
 
             <div id="description-box">
                 🏃 <b>조작 방법:</b> 화면 왼쪽/오른쪽 터치 또는 키보드 A, D (방향키)<br>
-                🍑 <b>엉덩이:</b> 떨어지는 엉덩이를 민첩하게 피하세요!<br>
-                🛡️ <b>방패:</b> 방패를 먹으면 위험한 순간을 1회 막아줌 <br>
-                🔥 <b>엉덩이 시간:</b> 게이지가 가득 차면 엉덩이 시간이 발동됨. 하늘에서 점수를 주는 별이 쏟아진다. 이건 피하는 거 아니라 먹는거임
+                🍑 <b>엉덩이:</b> 떨어지는 엉덩이를 피해야 한다. <br>
+                🛡️ <b>방패:</b> 엉덩이를 한 번 막아준다.<br>
+                🔥 <b>엉덩이 시간:</b> 게이지가 가득 차면 엉덩이 시간이 되며, 하늘에서 점수를 주는 별이 쏟아진다. 이건 피하지 말고 먹어야한다.
             </div>
 
             <div id="scoreboard"></div>
@@ -293,6 +312,9 @@
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('description-box').style.display = 'none'; 
+            document.getElementById('clear-message').style.display = 'none'; // 메시지 초기화
+            document.getElementById('overlay-title').innerText = "EONG DEONGI killer";
+            
             score = 0; gameTime = 0; spawnTimer = 0; itemSpawnTimer = 0; feverGauge = 0;
             currentSpawnDelay = 60; currentFallSpeed = 4;
             butts = []; items = []; stars = [];
@@ -319,6 +341,28 @@
             document.getElementById('overlay').querySelector('h1').innerText = "GAME OVER";
         }
 
+        // 게임 클리어 처리 함수
+        function gameClear() {
+            gameActive = false;
+            let currentNickname = document.getElementById('nickname-input').value.trim() || '익명';
+            
+            rankingList.push({ name: currentNickname, score: score });
+            rankingList.sort((a, b) => b.score - a.score);
+            rankingList = rankingList.slice(0, 5);
+            
+            localStorage.setItem('eong_deongi_rankings', JSON.stringify(rankingList));
+            
+            drawScoreboard();
+            
+            // UI 업데이트
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "🎉 GAME CLEAR? 🎉";
+            
+            const msgBox = document.getElementById('clear-message');
+            msgBox.innerText = "3131점을 달성했습니다!\n다음 업데이트를 기다리세요.";
+            msgBox.style.display = 'block';
+        }
+
         function drawFeverGauge() {
             const gaugeWidth = 200;
             const gaugeHeight = 15;
@@ -334,22 +378,14 @@
             
             ctx.fillStyle = '#333';
             ctx.font = 'bold 12px Arial';
-            ctx.fillText(mode === 'FEVER' ? '🔥 엉덩이 시간! 🔥' : '엉덩이 시간', V_WIDTH / 2, gaugeY + gaugeHeight / 2 + 1);
+            ctx.fillText(mode === 'FEVER' ? '🔥 엉덩이 시간 🔥' : '엉덩이 시간', V_WIDTH / 2, gaugeY + gaugeHeight / 2 + 1);
         }
 
         function gameLoop() {
             if (!gameActive) return; 
 
-            // 캐릭터 이동 로직 수정
-            let isMoving = false;
-            if (input.left) {
-                player.x -= player.speed;
-                isMoving = true;
-            }
-            if (input.right) {
-                player.x += player.speed;
-                isMoving = true;
-            }
+            if (input.left) player.x -= player.speed;
+            if (input.right) player.x += player.speed;
             if (player.x < player.size / 2) player.x = player.size / 2;
             if (player.x > V_WIDTH - player.size / 2) player.x = V_WIDTH - player.size / 2;
 
@@ -402,6 +438,12 @@
                         let gaugeGain = Math.max(1, 5 - Math.floor(score / 250));
                         feverGauge = Math.min(100, feverGauge + gaugeGain); 
                         currentScoreElement.innerText = score; 
+                        
+                        // 목표 점수 체크 (3131점)
+                        if (score >= 3131) {
+                            gameClear();
+                            return;
+                        }
                     }
                 }
 
@@ -424,6 +466,12 @@
                         stars.splice(i, 1);
                         score += 30; 
                         currentScoreElement.innerText = score;
+                        
+                        // 목표 점수 체크 (3131점)
+                        if (score >= 3131) {
+                            gameClear();
+                            return;
+                        }
                     } else if (stars[i].y > groundY) { 
                         stars.splice(i, 1);
                     }
@@ -454,26 +502,23 @@
 
             drawFeverGauge();
 
-            // 디자인 업그레이드: 캐릭터 실감 나는 움직임 애니메이션
-            ctx.save(); // 현재 캔버스 상태 저장
-            
-            // 움직임에 따른 기울기 계산
+            ctx.save(); 
             let tilt = 0;
-            if (input.left) tilt = -0.15; // 왼쪽으로 이동 시 왼쪽으로 기울이기
-            else if (input.right) tilt = 0.15; // 오른쪽으로 이동 시 오른쪽으로 기울이기
+            if (input.left) tilt = -0.15; 
+            else if (input.right) tilt = 0.15; 
             
-            ctx.translate(player.x, player.y); // 플레이어 위치로 캔버스 원점 이동
-            ctx.rotate(tilt); // 캔버스 회전
+            ctx.translate(player.x, player.y); 
+            ctx.rotate(tilt); 
             
             ctx.font = `${player.size}px Arial`;
-            ctx.fillText(player.emoji, 0, 0); // 플레이어 그리기 (원점에서)
+            ctx.fillText(player.emoji, 0, 0); 
             
             if (player.hasShield) {
                 ctx.font = `${player.size * 0.8}px Arial`;
                 ctx.fillText("🛡️", 0, -player.size * 0.7);
             }
             
-            ctx.restore(); // 저장했던 캔버스 상태 복원
+            ctx.restore(); 
 
             for (let i = 0; i < items.length; i++) {
                 ctx.font = `${items[i].size}px Arial`;
