@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>엉덩이 피하기 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* 모바일에서 텍스트 선택이나 롱터치 방지 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            background-color: #111;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        }
+        #game-wrapper {
+            position: relative;
+        }
+        canvas {
+            background-color: #f6d55c;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: block;
+            touch-action: none;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            z-index: 10;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .score-box {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-wrapper">
+        <div id="ui-container">
+            <div class="score-box">SCORE: <span id="current-score">0</span></div>
+            <div class="score-box">BEST: <span id="best-score">0</span></div>
+        </div>
+        <!-- 게임이 그려질 도화지 -->
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 게임 가상 해상도
+        const V_WIDTH = 400;
+        const V_HEIGHT = 600;
+
+        // 게임 기본 데이터
+        let score = 0;
+        let highScore = localStorage.getItem('butt_high_score') || 0;
+        let gameActive = true;
+        let mode = 'NORMAL'; 
+
+        // 타이머 및 난이도 설정
+        let gameTime = 0;
+        let spawnTimer = 0;
+        let itemSpawnTimer = 0;
+        let feverGauge = 0; 
+        
+        let currentSpawnDelay = 60;
+        let currentFallSpeed = 4;
+        const MIN_SPAWN_DELAY = 15;
+        const MAX_FALL_SPEED = 12;
+
+        // 플레이어 캐릭터
+        const player = {
+            x: V_WIDTH / 2,
+            y: V_HEIGHT - 60,
+            size: 40,
+            speed: 7,
+            emoji: "🏃",
+            hasShield: false
+        };
+
+        // 오브젝트 관리 배열
+        let butts = [];
+        let items = [];
+        let stars = []; 
+
+        const input = { left: false, right: false };
+
+        const currentScoreElement = document.getElementById('current-score');
+        const bestScoreElement = document.getElementById('best-score');
+        bestScoreElement.innerText = highScore;
+
+        // 화면 크기에 맞게 캔버스 크기 조정
+        function resizeCanvas() {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const windowRatio = windowWidth / windowHeight;
+            const gameRatio = V_WIDTH / V_HEIGHT;
+            
+            if (windowRatio < gameRatio) {
+                canvas.style.width = windowWidth + 'px';
+                canvas.style.height = (windowWidth / gameRatio) + 'px';
+            } else {
+                canvas.style.height = windowHeight + 'px';
+                canvas.style.width = (windowHeight * gameRatio) + 'px';
+            }
+            
+            canvas.width = V_WIDTH;
+            canvas.height = V_HEIGHT;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); 
+
+        // PC 키보드 입력
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = false;
+        });
+
+        // 모바일 터치 및 PC 마우스 클릭 입력 통합
+        function handlePointerDown(clientX) {
+            if (!gameActive) {
+                resetGame();
+                return;
+            }
+            const halfScreenWidth = window.innerWidth / 2;
+            if (clientX < halfScreenWidth) input.left = true;
+            else input.right = true;
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handlePointerDown(e.touches[0].clientX);
+        }, { passive: false });
+        
+        window.addEventListener('touchend', () => {
+            input.left = false;
+            input.right = false;
+        });
+        
+        window.addEventListener('mousedown', (e) => {
+            if (!gameActive) resetGame();
+            else handlePointerDown(e.clientX);
+        });
+        
+        window.addEventListener('mouseup', () => {
+            input.left = false;
+            input.right = false;
+        });
+
+        // 오브젝트 생성 함수
+        function spawnObject(arr, emoji, size, speed) {
+            const minX = size / 2;
+            const maxX = V_WIDTH - size / 2;
+            const randomX = Math.random() * (maxX - minX) + minX;
+            arr.push({ x: randomX, y: -size, size: size, speed: speed, emoji: emoji });
+        }
+
+        // 원형 충돌 검사 알고리즘
+        function checkCollision(obj1, obj2) {
+            const distX = obj1.x - obj2.x;
+            const distY = obj1.y - obj2.y;
+            const distance = Math.sqrt(distX * distX + distY * distY);
+            const radius1 = (obj1.size / 2) * 0.75;
+            const radius2 = (obj2.size / 2) * 0.75;
+            return distance < radius1 + radius2;
+        }
+
+        // 게임 오버 처리
+        function gameOver() {
+            gameActive = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('butt_high_score', highScore);
+                bestScoreElement.innerText = highScore;
+            }
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 32px Arial';
+            ctx.fillText('GAME OVER', V_WIDTH / 2, V_HEIGHT / 2 - 40);
+            
+            ctx.fillStyle = '#f6d55c';
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText(`SCORE: ${score}`, V_WIDTH / 2, V_HEIGHT / 2 + 10);
+            
+            ctx.fillStyle = '#eee';
+            ctx.font = '16px Arial';
+            ctx.fillText('화면을 터치하여 재시작', V_WIDTH / 2, V_HEIGHT / 2 + 60);
+        }
+
+        // 게임 초기화
+        function resetGame() {
+            score = 0; gameTime = 0; spawnTimer = 0; itemSpawnTimer = 0; feverGauge = 0;
+            currentSpawnDelay = 60; currentFallSpeed = 4;
+            butts = []; items = []; stars = [];
+            player.x = V_WIDTH / 2; player.hasShield = false;
+            input.left = false; input.right = false;
+            currentScoreElement.innerText = score;
+            gameActive = true;
+            mode = 'NORMAL';
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 피버 게이지 UI 그리기
+        function drawFeverGauge() {
+            const gaugeWidth = 200;
+            const gaugeHeight = 15;
+            const gaugeX = V_WIDTH / 2 - gaugeWidth / 2;
+            const gaugeY = 70;
+            
+            // 게이지 배경
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight);
+            
+            // 채워지는 피버 바
+            const fillWidth = (feverGauge / 100) * gaugeWidth;
+            ctx.fillStyle = mode === 'FEVER' ? '#ff4757' : '#2ed573';
+            ctx.fillRect(gaugeX, gaugeY, fillWidth, gaugeHeight);
+            
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(mode === 'FEVER' ? 'FEVER TIME!' : 'FEVER GAUGE', V_WIDTH / 2, gaugeY + gaugeHeight / 2 + 1);
+        }
+
+        // 메인 게임 루프
+        function gameLoop() {
+            if (!gameActive) return; 
+
+            // 플레이어 이동 처리
+            if (input.left) player.x -= player.speed;
+            if (input.right) player.x += player.speed;
+            
+            if (player.x < player.size / 2) player.x = player.size / 2;
+            if (player.x > V_WIDTH - player.size / 2) player.x = V_WIDTH - player.size / 2;
+
+            if (mode === 'NORMAL') {
+                gameTime++;
+                
+                // 난이도 상승
+                if (gameTime % 60 === 0) {
+                    if (currentFallSpeed < MAX_FALL_SPEED) currentFallSpeed += 0.15;
+                    if (currentSpawnDelay > MIN_SPAWN_DELAY) currentSpawnDelay -= 0.5;
+                }
+
+                // 엉덩이 생성
+                spawnTimer++;
+                if (spawnTimer >= currentSpawnDelay) {
+                    spawnObject(butts, "🍑", 45, currentFallSpeed + (Math.random() * 2 - 1));
+                    spawnTimer = 0; 
+                }
+
+                // 보호막 아이템 생성 (약 7.5초마다)
+                itemSpawnTimer++;
+                if (itemSpawnTimer >= 450) {
+                    if (!player.hasShield) spawnObject(items, "🛡️", 35, 3);
+                    itemSpawnTimer = 0;
+                }
+
+                // 아이템 이동 및 충돌
+                for (let i = items.length - 1; i >= 0; i--) {
+                    items[i].y += items[i].speed;
+                    if (checkCollision(player, items[i])) {
+                        player.hasShield = true;
+                        items.splice(i, 1);
+                        continue;
+                    }
+                    if (items[i].y > V_HEIGHT + items[i].size) items.splice(i, 1);
+                }
+
+                // 엉덩이 이동 및 충돌
+                for (let i = butts.length - 1; i >= 0; i--) {
+                    butts[i].y += butts[i].speed; 
+                    if (checkCollision(player, butts[i])) {
+                        if (player.hasShield) {
+                            player.hasShield = false; 
+                            butts.splice(i, 1);       
+                            continue;                 
+                        } else {
+                            gameOver();
+                            return; 
+                        }
+                    }
+                    // 회피 성공
+                    if (butts[i].y > V_HEIGHT + butts[i].size) {
+                        butts.splice(i, 1); 
+                        score += 10;
+                        feverGauge = Math.min(100, feverGauge + 5); // 피버 게이지 충전
+                        currentScoreElement.innerText = score; 
+                    }
+                }
+
+                // 피버 타임 진입
+                if (feverGauge >= 100) {
+                    mode = 'FEVER';
+                    butts = []; // 화면에 있는 엉덩이 즉시 초기화
+                    items = []; 
+                }
+
+            } else if (mode === 'FEVER') {
+                // 피버 타임 점수(별) 생성
+                spawnTimer++;
+                if (spawnTimer >= 10) { 
+                    spawnObject(stars, "⭐", 40, 8 + Math.random() * 2);
+                    spawnTimer = 0;
+                }
+
+                // 별 이동 및 획득 처리
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    stars[i].y += stars[i].speed;
+                    if (checkCollision(player, stars[i])) {
+                        stars.splice(i, 1);
+                        score += 30; // 별 획득 시 추가 점수
+                        currentScoreElement.innerText = score;
+                    } else if (stars[i].y > V_HEIGHT + stars[i].size) {
+                        stars.splice(i, 1);
+                    }
+                }
+
+                // 피버 게이지 점진적 소모
+                feverGauge -= 0.3; 
+                if (feverGauge <= 0) {
+                    mode = 'NORMAL';
+                    feverGauge = 0;
+                }
+            }
+
+            // --- 렌더링(화면 그리기) ---
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT); 
+
+            // 피버타임 특수 배경 붉은 효과
+            if (mode === 'FEVER') {
+                ctx.fillStyle = `rgba(255, 100, 100, ${0.1 + Math.sin(Date.now() / 100) * 0.1})`;
+                ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+            }
+            
+            drawFeverGauge();
+
+            // 플레이어 그리기
+            ctx.font = `${player.size}px Arial`;
+            ctx.fillText(player.emoji, player.x, player.y);
+            
+            // 보호막 장착 시 머리 위 렌더링
+            if (player.hasShield) {
+                ctx.font = `${player.size * 0.8}px Arial`;
+                ctx.fillText("🛡️", player.x, player.y - player.size * 0.7);
+            }
+
+            // 아이템, 엉덩이, 별 그리기
+            for (let i = 0; i < items.length; i++) {
+                ctx.font = `${items[i].size}px Arial`;
+                ctx.fillText(items[i].emoji, items[i].x, items[i].y);
+            }
+            for (let i = 0; i < butts.length; i++) {
+                ctx.font = `${butts[i].size}px Arial`;
+                ctx.fillText(butts[i].emoji, butts[i].x, butts[i].y);
+            }
+            for (let i = 0; i < stars.length; i++) {
+                ctx.font = `${stars[i].size}px Arial`;
+                ctx.fillText(stars[i].emoji, stars[i].x, stars[i].y);
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 최초 실행
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
