@@ -158,9 +158,9 @@
 
             <div id="description-box">
                 🏃 <b>조작 방법:</b> 화면 왼쪽/오른쪽 터치 또는 키보드 A, D (방향키)<br>
-                🍑 <b>장애물:</b> 떨어지는 엉덩이를 민첩하게 피하세요!<br>
-                🛡️ <b>아이템:</b> 방패를 먹으면 위험한 순간을 1회 방어합니다.<br>
-                🔥 <b>엉덩이 시간:</b> 게이지가 가득 차면 무지개 피버타임 발동! 하늘에서 점수를 주는 별이 쏟아집니다.
+                🍑 <b>엉덩이:</b> 떨어지는 엉덩이를 민첩하게 피하세요!<br>
+                🛡️ <b>방패:</b> 방패를 먹으면 위험한 순간을 1회 막아줌 <br>
+                🔥 <b>엉덩이 시간:</b> 게이지가 가득 차면 엉덩이 시간이 발동됨. 하늘에서 점수를 주는 별이 쏟아진다. 이건 피하는 거 아니라 먹는거임
             </div>
 
             <div id="scoreboard"></div>
@@ -280,10 +280,10 @@
         function drawScoreboard() {
             const board = document.getElementById('scoreboard');
             if (rankingList.length === 0) {
-                board.innerHTML = '<h3>🏆실시간 TOP 5🏆</h3><p style="color:#aaa;">아직 기록이 없습니다.</p>';
+                board.innerHTML = '<h3>🏆실시간 최고의 엉덩이 5🏆</h3><p style="color:#aaa;">아직 기록이 없습니다.</p>';
                 return;
             }
-            let html = '<h3>🏆실시간 TOP 5🏆</h3>';
+            let html = '<h3>🏆실시간 최고의 엉덩이 5🏆</h3>';
             rankingList.forEach((record, index) => {
                 html += `<p>${index + 1}등: <b>${record.name}</b> - ${record.score}점</p>`;
             });
