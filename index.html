@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>EONG DEONGI killer</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -66,12 +71,18 @@
             z-index: 20;
             padding: 20px;
         }
+        
+        /* 디자인 업그레이드: 필기체 타이포그래피 */
         #overlay h1 {
-            font-size: 32px;
-            color: #ffb6c1;
-            margin-bottom: 20px;
+            font-family: 'Dancing Script', cursive;
+            font-size: 48px;
+            background: linear-gradient(to bottom, #ffb6c1, #ff4757); /* 그라데이션 추가 */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
         }
+        
         #nickname-input {
             padding: 10px 15px;
             font-size: 16px;
@@ -87,35 +98,23 @@
             gap: 10px;
             margin-bottom: 15px;
         }
-        #start-btn {
+        #start-btn, #desc-btn {
             padding: 12px 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
             border: none;
             border-radius: 25px;
-            background: #ff4757;
             color: white;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: 0.2s;
         }
-        /* 요구사항 1: 게임 설명 버튼 스타일 */
-        #desc-btn {
-            padding: 12px 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            border-radius: 25px;
-            background: #2ed573;
-            color: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: 0.2s;
-        }
+        #start-btn { background: #ff4757; }
+        #desc-btn { background: #2ed573; }
+        
         #start-btn:active, #desc-btn:active {
             transform: scale(0.95);
         }
-        /* 요구사항 1: 게임 설명 텍스트 박스 스타일 */
         #description-box {
             display: none;
             background: rgba(255, 255, 255, 0.15);
@@ -191,7 +190,6 @@
         const MIN_SPAWN_DELAY = 15;
         const MAX_FALL_SPEED = 12;
 
-        // 요구사항 2: 땅 위에 자연스럽게 서 있도록 플레이어 높이 조절 (y 위치 조정)
         const player = {
             x: V_WIDTH / 2,
             y: V_HEIGHT - 65, 
@@ -256,7 +254,6 @@
             input.right = false;
         });
 
-        // 요구사항 1: 설명창 열고 닫는 함수
         function toggleDescription() {
             const box = document.getElementById('description-box');
             if (box.style.display === 'block') {
@@ -270,7 +267,6 @@
             const minX = size / 2;
             const maxX = V_WIDTH - size / 2;
             const randomX = Math.random() * (maxX - minX) + minX;
-            // 요구사항 2: 오브젝트가 땅(바닥)에 닿기 전에 사라지도록 한계선 설정 목적의 초기값 생성
             arr.push({ x: randomX, y: -size, size: size, speed: speed, emoji: emoji });
         }
 
@@ -296,7 +292,7 @@
 
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
-            document.getElementById('description-box').style.display = 'none'; // 시작 시 설명창 닫기
+            document.getElementById('description-box').style.display = 'none'; 
             score = 0; gameTime = 0; spawnTimer = 0; itemSpawnTimer = 0; feverGauge = 0;
             currentSpawnDelay = 60; currentFallSpeed = 4;
             butts = []; items = []; stars = [];
@@ -344,12 +340,19 @@
         function gameLoop() {
             if (!gameActive) return; 
 
-            if (input.left) player.x -= player.speed;
-            if (input.right) player.x += player.speed;
+            // 캐릭터 이동 로직 수정
+            let isMoving = false;
+            if (input.left) {
+                player.x -= player.speed;
+                isMoving = true;
+            }
+            if (input.right) {
+                player.x += player.speed;
+                isMoving = true;
+            }
             if (player.x < player.size / 2) player.x = player.size / 2;
             if (player.x > V_WIDTH - player.size / 2) player.x = V_WIDTH - player.size / 2;
 
-            // 땅의 높이 경계선 (바닥에서 40픽셀 위)
             const groundY = V_HEIGHT - 40;
 
             if (mode === 'NORMAL') {
@@ -378,7 +381,6 @@
                         items.splice(i, 1);
                         continue;
                     }
-                    // 요구사항 2: 땅에 닿으면 아이템 제거
                     if (items[i].y > groundY) items.splice(i, 1);
                 }
 
@@ -394,16 +396,11 @@
                             return; 
                         }
                     }
-                    // 요구사항 2: 화면 밑바닥이 아니라 '땅'에 닿았을 때 점수 획득 처리
                     if (butts[i].y > groundY) {
                         butts.splice(i, 1); 
                         score += 10;
-                        
-                        // 요구사항 3: 현재 점수에 비례하여 게이지 획득량이 감소하는 시스템 구축
-                        // 기본 획득량은 5점이지만 점수가 250점 올라갈 때마다 획득 수치가 1씩 감소 (최소 최소 획득량 1 유지)
                         let gaugeGain = Math.max(1, 5 - Math.floor(score / 250));
                         feverGauge = Math.min(100, feverGauge + gaugeGain); 
-                        
                         currentScoreElement.innerText = score; 
                     }
                 }
@@ -427,7 +424,7 @@
                         stars.splice(i, 1);
                         score += 30; 
                         currentScoreElement.innerText = score;
-                    } else if (stars[i].y > groundY) { // 요구사항 2: 땅에 닿으면 별 제거
+                    } else if (stars[i].y > groundY) { 
                         stars.splice(i, 1);
                     }
                 }
@@ -449,23 +446,34 @@
                 ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
             }
             
-            // 요구사항 2: 배경 하단에 단단한 '땅' 그리기 (연분홍 테마와 대비되는 따뜻한 베이지 브라운 컬러)
             ctx.fillStyle = "#cca0a6";
             ctx.fillRect(0, groundY, V_WIDTH, 40);
             
-            // 땅과 하늘의 경계선 디테일 추가
             ctx.fillStyle = "#b38289";
             ctx.fillRect(0, groundY, V_WIDTH, 4);
 
             drawFeverGauge();
 
+            // 디자인 업그레이드: 캐릭터 실감 나는 움직임 애니메이션
+            ctx.save(); // 현재 캔버스 상태 저장
+            
+            // 움직임에 따른 기울기 계산
+            let tilt = 0;
+            if (input.left) tilt = -0.15; // 왼쪽으로 이동 시 왼쪽으로 기울이기
+            else if (input.right) tilt = 0.15; // 오른쪽으로 이동 시 오른쪽으로 기울이기
+            
+            ctx.translate(player.x, player.y); // 플레이어 위치로 캔버스 원점 이동
+            ctx.rotate(tilt); // 캔버스 회전
+            
             ctx.font = `${player.size}px Arial`;
-            ctx.fillText(player.emoji, player.x, player.y);
+            ctx.fillText(player.emoji, 0, 0); // 플레이어 그리기 (원점에서)
             
             if (player.hasShield) {
                 ctx.font = `${player.size * 0.8}px Arial`;
-                ctx.fillText("🛡️", player.x, player.y - player.size * 0.7);
+                ctx.fillText("🛡️", 0, -player.size * 0.7);
             }
+            
+            ctx.restore(); // 저장했던 캔버스 상태 복원
 
             for (let i = 0; i < items.length; i++) {
                 ctx.font = `${items[i].size}px Arial`;
