@@ -29,7 +29,7 @@
             height: 600px;
         }
         canvas {
-            background-color: #ffd1dc; /* 요구사항 3: 연분홍색 배경 설정 */
+            background-color: #ffd1dc; 
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             display: block;
             touch-action: none;
@@ -51,7 +51,6 @@
             padding: 5px 15px;
             border-radius: 20px;
         }
-        /* 요구사항 1 & 2: 오프닝 및 스코어보드 UI */
         #overlay {
             position: absolute;
             top: 0;
@@ -83,9 +82,14 @@
             width: 200px;
             outline: none;
         }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
         #start-btn {
-            padding: 12px 35px;
-            font-size: 18px;
+            padding: 12px 25px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
             border: none;
@@ -95,11 +99,35 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: 0.2s;
         }
-        #start-btn:active {
+        /* 요구사항 1: 게임 설명 버튼 스타일 */
+        #desc-btn {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 25px;
+            background: #2ed573;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: 0.2s;
+        }
+        #start-btn:active, #desc-btn:active {
             transform: scale(0.95);
         }
+        /* 요구사항 1: 게임 설명 텍스트 박스 스타일 */
+        #description-box {
+            display: none;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px;
+            border-radius: 8px;
+            width: 280px;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
         #scoreboard {
-            margin-top: 25px;
             background: rgba(255, 255, 255, 0.1);
             padding: 15px;
             border-radius: 10px;
@@ -123,7 +151,19 @@
         <div id="overlay">
             <h1>EONG DEONGI killer</h1>
             <input type="text" id="nickname-input" placeholder="닉네임 입력 (최대5자)" maxlength="5" value="플레이어">
-            <button id="start-btn" onclick="startGame()">START GAME</button>
+            
+            <div class="btn-group">
+                <button id="start-btn" onclick="startGame()">START GAME</button>
+                <button id="desc-btn" onclick="toggleDescription()">설명 보기</button>
+            </div>
+
+            <div id="description-box">
+                🏃 <b>조작 방법:</b> 화면 왼쪽/오른쪽 터치 또는 키보드 A, D (방향키)<br>
+                🍑 <b>장애물:</b> 떨어지는 엉덩이를 민첩하게 피하세요!<br>
+                🛡️ <b>아이템:</b> 방패를 먹으면 위험한 순간을 1회 방어합니다.<br>
+                🔥 <b>엉덩이 시간:</b> 게이지가 가득 차면 무지개 피버타임 발동! 하늘에서 점수를 주는 별이 쏟아집니다.
+            </div>
+
             <div id="scoreboard"></div>
         </div>
 
@@ -151,9 +191,10 @@
         const MIN_SPAWN_DELAY = 15;
         const MAX_FALL_SPEED = 12;
 
+        // 요구사항 2: 땅 위에 자연스럽게 서 있도록 플레이어 높이 조절 (y 위치 조정)
         const player = {
             x: V_WIDTH / 2,
-            y: V_HEIGHT - 60,
+            y: V_HEIGHT - 65, 
             size: 40,
             speed: 7,
             emoji: "🏃",
@@ -167,7 +208,6 @@
         const input = { left: false, right: false };
         const currentScoreElement = document.getElementById('current-score');
         
-        // 랭킹 데이터 불러오기 (닉네임 + 스코어 객체 배열 구조)
         let rankingList = JSON.parse(localStorage.getItem('eong_deongi_rankings') || '[]');
 
         function resizeCanvas() {
@@ -178,7 +218,6 @@
         }
         resizeCanvas(); 
 
-        // PC 키보드 제어
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = true;
@@ -189,7 +228,6 @@
             if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = false;
         });
 
-        // 마우스 및 터치 입력 통합
         function handlePointerDown(clientX) {
             if (!gameActive) return;
             const rect = canvas.getBoundingClientRect();
@@ -218,10 +256,21 @@
             input.right = false;
         });
 
+        // 요구사항 1: 설명창 열고 닫는 함수
+        function toggleDescription() {
+            const box = document.getElementById('description-box');
+            if (box.style.display === 'block') {
+                box.style.display = 'none';
+            } else {
+                box.style.display = 'block';
+            }
+        }
+
         function spawnObject(arr, emoji, size, speed) {
             const minX = size / 2;
             const maxX = V_WIDTH - size / 2;
             const randomX = Math.random() * (maxX - minX) + minX;
+            // 요구사항 2: 오브젝트가 땅(바닥)에 닿기 전에 사라지도록 한계선 설정 목적의 초기값 생성
             arr.push({ x: randomX, y: -size, size: size, speed: speed, emoji: emoji });
         }
 
@@ -232,7 +281,6 @@
             return distance < (obj1.size / 2)*0.75 + (obj2.size / 2)*0.75;
         }
 
-        // 스코어보드 UI 갱신 기능 (요구사항 2)
         function drawScoreboard() {
             const board = document.getElementById('scoreboard');
             if (rankingList.length === 0) {
@@ -246,9 +294,9 @@
             board.innerHTML = html;
         }
 
-        // 게임 시작 실행
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
+            document.getElementById('description-box').style.display = 'none'; // 시작 시 설명창 닫기
             score = 0; gameTime = 0; spawnTimer = 0; itemSpawnTimer = 0; feverGauge = 0;
             currentSpawnDelay = 60; currentFallSpeed = 4;
             butts = []; items = []; stars = [];
@@ -260,12 +308,10 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // 게임 오버 처리 및 랭킹 세이브 (요구사항 2)
         function gameOver() {
             gameActive = false;
             let currentNickname = document.getElementById('nickname-input').value.trim() || '익명';
             
-            // 신규 기록 추가 후 정렬 및 TOP 5 커트
             rankingList.push({ name: currentNickname, score: score });
             rankingList.sort((a, b) => b.score - a.score);
             rankingList = rankingList.slice(0, 5);
@@ -277,7 +323,6 @@
             document.getElementById('overlay').querySelector('h1').innerText = "GAME OVER";
         }
 
-        // 게이지 UI 그리기 (요구사항 6: 이름 변경)
         function drawFeverGauge() {
             const gaugeWidth = 200;
             const gaugeHeight = 15;
@@ -293,11 +338,9 @@
             
             ctx.fillStyle = '#333';
             ctx.font = 'bold 12px Arial';
-            // 요구사항 6: 피버 게이지 명칭을 '엉덩이 시간'으로 통합 변경
             ctx.fillText(mode === 'FEVER' ? '🔥 엉덩이 시간! 🔥' : '엉덩이 시간', V_WIDTH / 2, gaugeY + gaugeHeight / 2 + 1);
         }
 
-        // 메인 게임 루프
         function gameLoop() {
             if (!gameActive) return; 
 
@@ -305,6 +348,9 @@
             if (input.right) player.x += player.speed;
             if (player.x < player.size / 2) player.x = player.size / 2;
             if (player.x > V_WIDTH - player.size / 2) player.x = V_WIDTH - player.size / 2;
+
+            // 땅의 높이 경계선 (바닥에서 40픽셀 위)
+            const groundY = V_HEIGHT - 40;
 
             if (mode === 'NORMAL') {
                 gameTime++;
@@ -332,7 +378,8 @@
                         items.splice(i, 1);
                         continue;
                     }
-                    if (items[i].y > V_HEIGHT + items[i].size) items.splice(i, 1);
+                    // 요구사항 2: 땅에 닿으면 아이템 제거
+                    if (items[i].y > groundY) items.splice(i, 1);
                 }
 
                 for (let i = butts.length - 1; i >= 0; i--) {
@@ -347,10 +394,16 @@
                             return; 
                         }
                     }
-                    if (butts[i].y > V_HEIGHT + butts[i].size) {
+                    // 요구사항 2: 화면 밑바닥이 아니라 '땅'에 닿았을 때 점수 획득 처리
+                    if (butts[i].y > groundY) {
                         butts.splice(i, 1); 
                         score += 10;
-                        feverGauge = Math.min(100, feverGauge + 5); 
+                        
+                        // 요구사항 3: 현재 점수에 비례하여 게이지 획득량이 감소하는 시스템 구축
+                        // 기본 획득량은 5점이지만 점수가 250점 올라갈 때마다 획득 수치가 1씩 감소 (최소 최소 획득량 1 유지)
+                        let gaugeGain = Math.max(1, 5 - Math.floor(score / 250));
+                        feverGauge = Math.min(100, feverGauge + gaugeGain); 
+                        
                         currentScoreElement.innerText = score; 
                     }
                 }
@@ -374,7 +427,7 @@
                         stars.splice(i, 1);
                         score += 30; 
                         currentScoreElement.innerText = score;
-                    } else if (stars[i].y > V_HEIGHT + stars[i].size) {
+                    } else if (stars[i].y > groundY) { // 요구사항 2: 땅에 닿으면 별 제거
                         stars.splice(i, 1);
                     }
                 }
@@ -383,20 +436,27 @@
                 if (feverGauge <= 0) {
                     mode = 'NORMAL';
                     feverGauge = 0;
-                    stars = []; // 요구사항 4: 피버타임 종료 시 남아있는 별 무리 완전 제거
+                    stars = []; 
                 }
             }
 
-            // --- 렌더링 시작 ---
+            // --- 렌더링 영역 ---
             ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT); 
 
-            // 요구사항 5: 피버타임 작동 시 실시간 무지개 그라데이션 루프 배경 연출
             if (mode === 'FEVER') {
                 let hue = (Date.now() / 15) % 360;
                 ctx.fillStyle = `hsl(${hue}, 85%, 85%)`; 
                 ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
             }
             
+            // 요구사항 2: 배경 하단에 단단한 '땅' 그리기 (연분홍 테마와 대비되는 따뜻한 베이지 브라운 컬러)
+            ctx.fillStyle = "#cca0a6";
+            ctx.fillRect(0, groundY, V_WIDTH, 40);
+            
+            // 땅과 하늘의 경계선 디테일 추가
+            ctx.fillStyle = "#b38289";
+            ctx.fillRect(0, groundY, V_WIDTH, 4);
+
             drawFeverGauge();
 
             ctx.font = `${player.size}px Arial`;
@@ -423,7 +483,6 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // 초기 화면 세팅
         drawScoreboard();
     </script>
 </body>
